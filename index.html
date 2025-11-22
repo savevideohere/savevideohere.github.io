@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Video Downloader</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    background: #0d1117;
+    color: #ffffffd9;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 15px;
+    color: #fff;
+  }
+
+  p.sub {
+    text-align: center;
+    color: #9ba5b3;
+    margin-bottom: 30px;
+  }
+
+  .card {
+    background: #161b22;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 0 22px rgba(0, 0, 0, 0.40);
+  }
+
+  .input-box {
+    display: flex;
+    gap: 10px;
+  }
+
+  input {
+    flex: 1;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 16px;
+    border: 1px solid #2c3542;
+    outline: none;
+    background: #0d1117;
+    color: white;
+  }
+
+  button {
+    padding: 14px 20px;
+    background: #238636;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: white;
+    font-size: 16px;
+    transition: 0.2s;
+  }
+
+  button:hover {
+    background: #2ea043;
+  }
+
+  #formats {
+    margin-top: 25px;
+  }
+
+  .format {
+    background: #1c2128;
+    padding: 14px;
+    border-radius: 10px;
+    margin: 8px 0;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    transition: 0.2s;
+  }
+
+  .format:hover {
+    background: #262d36;
+  }
+
+  .format.active {
+    border-color: #2ea043;
+    background: #1d3323;
+  }
+
+  #output {
+    margin-top: 25px;
+    padding: 15px;
+    background: #11161d;
+    border-radius: 10px;
+    border: 1px solid #30363d;
+  }
+
+  a.download-link {
+    color: #58a6ff;
+    font-size: 18px;
+    text-decoration: none;
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Universal Video Downloader</h1>
+  <p class="sub">Download from 1000+ websites instantly.</p>
+
+  <div class="card">
+    <div class="input-box">
+      <input id="url" placeholder="Paste video link here..." />
+      <button onclick="analyze()">Analyze</button>
+    </div>
+
+    <div id="formats"></div>
+    <button style="margin-top: 10px; width: 100%;" onclick="downloadVideo()">Download Selected Format</button>
+
+    <div id="output"></div>
+  </div>
+</div>
+
+<script>
+  // SET YOUR BACKEND URL HERE
+  const BACKEND = "https://video-backend-zr8g.onrender.com"; // ← replace
+
+  let selectedFormat = null;
+  let availableFormats = [];
+
+  function show(msg) {
+    document.getElementById("output").innerHTML = msg;
+  }
+
+  async function analyze() {
+    const url = document.getElementById("url").value.trim();
+    if (!url) return show("❗ Enter a URL first.");
+
+    show("⏳ Analyzing...");
+    document.getElementById("formats").innerHTML = "";
+
+    const res = await fetch(BACKEND + "/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await res.json();
+    if (data.error) return show("❌ Error: " + data.error);
+
+    availableFormats = data.formats;
+    selectedFormat = null;
+
+    let html = "<h3>Select a format:</h3>";
+    html += availableFormats.map((f, i) => `
+      <div class="format" onclick="chooseFormat(${i})">
+        <b>${f.format}</b> (${f.ext})
+      </div>
+    `).join("");
+
+    document.getElementById("formats").innerHTML = html;
+    show("✔ Analysis complete.");
+  }
+
+  function chooseFormat(i) {
+    selectedFormat = i;
+    const boxes = document.querySelectorAll(".format");
+    boxes.forEach((b, idx) => {
+      b.classList.toggle("active", idx === i);
+    });
+  }
+
+  async function downloadVideo() {
+    if (selectedFormat === null)
+      return show("❗ Select a format first.");
+
+    const url = document.getElementById("url").value;
+
+    show("⏳ Preparing download...");
+
+    const res = await fetch(BACKEND + "/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await res.json();
+    if (data.error) return show("❌ Error: " + data.error);
+
+    show(`
+      ✔ Your file is ready:<br><br>
+      <a class="download-link" href="${data.fileUrl}" download>
+        ⬇ Download ${data.filename}
+      </a>
+    `);
+  }
+</script>
+</body>
+</html>
